@@ -7,10 +7,27 @@ import PricingView from "@/components/PricingView";
 import AuthModal from "@/components/AuthModal";
 import { useAuth } from "@/context/AuthContext";
 
+import LandingPage from "@/components/LandingPage";
+
 export default function ClientLayout({ children }: { children: React.ReactNode }) {
     const [activeTab, setActiveTab] = useState("DASHBOARD");
     const [isAuthOpen, setIsAuthOpen] = useState(false);
-    const { user, logout, isAuthenticated } = useAuth();
+    const { user, logout, isAuthenticated, loading } = useAuth();
+
+    if (loading) {
+        return <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+            <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+        </div>
+    }
+
+    if (!isAuthenticated) {
+        return (
+            <>
+                <LandingPage onStart={() => setIsAuthOpen(true)} />
+                <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+            </>
+        )
+    }
 
     const renderContent = () => {
         switch (activeTab) {

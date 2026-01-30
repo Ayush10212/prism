@@ -12,6 +12,7 @@ class User(Base):
     hashed_password = Column(String)
     subscription_status = Column(String, default="FREEMIUM") # FREEMIUM, PREMIUM
     currency_pref = Column(String, default="USD")
+    credits = Column(Integer, default=5)
 
     decisions = relationship("Decision", back_populates="user")
 

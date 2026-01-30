@@ -3,63 +3,120 @@
 import DecisionForm from "@/components/DecisionForm"
 import { useState } from "react"
 import { useAuth } from "@/context/AuthContext"
+import { useRouter } from "next/navigation"
 
 export default function Home() {
   const [analysis, setAnalysis] = useState<any>(null)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const { user } = useAuth()
+  const { user, login, logout } = useAuth() // Need login to update user state if response returns new credit count
+  const router = useRouter()
+
+  // Update user state if analysis returns updated credits
+  // But wait, the analysis response might need to be intercepted.
 
   const handleAnalysis = async (data: any) => {
+    if (user.credits <= 0) {
+      alert("Trial limit reached. Please upgrade to continue.")
+      // Ideally show a nice modal here.
+      return
+    }
+
     setIsAnalyzing(true)
     try {
-      const response = await fetch("/api/analyze", {
+      const token = localStorage.getItem("prism_token")
+      const response = await fetch("http://localhost:8000/api/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify({
           ...data,
-          user_id: user?.id || null
+          user_id: user.id
         })
       })
+
+      if (response.status === 402) {
+        alert("Trial limit reached. Please upgrade.")
+        setIsAnalyzing(false)
+        return
+      }
+
+      if (response.status === 401) {
+        alert("Session expired. Please log in again.")
+        logout()
+        return
+      }
+
+      if (!response.ok) {
+        throw new Error("Analysis failed")
+      }
+
       const result = await response.json()
       setAnalysis(result)
+
+      // Update local credits if returned
+      if (result.user_credits !== undefined) {
+        // We need to update the user object in context. 
+        // Since useAuth mostly exposes specific methods, we might need to manually update localStorage and trigger a reload or update.
+        // Quick dirty fix: modify the user object in place for this session, or use a method if available.
+        // The context exposes `login` which sets the user. We can "re-login" with the same token and updated user.
+        const updatedUser = { ...user, credits: result.user_credits }
+        login(updatedUser, localStorage.getItem("prism_token")!)
+      }
+
     } catch (e) {
       console.error("Analysis failed", e)
-      setAnalysis({
-        summary: `Failsafe analysis for ${data.asset}.`,
-        biases: ["Backend connection required for full behavioral analysis."],
-        risks: ["System running in standalone mode."],
-        scenarios: { bull: "N/A", base: "N/A", bear: "N/A" },
-        score: 50,
-        prompt: "Why did the connection fail?"
-      })
+      // Fallback for demo if backend is down, but strictly we should error out as requested?
+      // User asked for "ask for payment", so we shouldn't show fake results if credits are out.
+      // But if it's a connection error, maybe show error.
+      alert("System connection error. Please try again.")
     } finally {
       setIsAnalyzing(false)
     }
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-12">
-      <section className="space-y-4">
-        <h1 className="text-4xl font-bold tracking-tight">System Status: <span className="text-green-500">OPERATIONAL</span></h1>
-        <p className="text-slate-400 max-w-2xl text-lg">
-          {user ? `Analyzing behavioral patterns for ${user.email}.` : "Analyzing behavioral patterns across historical interactions."}
-          Intelligence engine is primed for high-stakes decision analysis.
-        </p>
+    <div className="max-w-6xl mx-auto space-y-12 py-12 px-4">
+      <section className="flex justify-between items-end border-b border-white/10 pb-8">
+        <div className="space-y-4">
+          <h1 className="text-4xl font-bold tracking-tight">System Status: <span className="text-green-500">OPERATIONAL</span></h1>
+          <p className="text-slate-400 max-w-2xl text-lg">
+            Analyzing behavioral patterns for <span className="text-white">{user.email}</span>.
+          </p>
+        </div>
+        <div className="text-right">
+          <div className="text-xs font-mono text-slate-500 mb-1">CREDITS REMAINING</div>
+          <div className="text-4xl font-mono font-bold text-white">{user.credits} / 5</div>
+        </div>
       </section>
 
-      {!analysis && !isAnalyzing ? (
-        <DecisionForm onSubmit={handleAnalysis} />
-      ) : (
-        <div className="space-y-8 animate-in fade-in duration-700">
-          {isAnalyzing ? (
-            <div className="premium-card p-20 text-center space-y-4">
-              <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="font-mono text-sm text-slate-500">DECOMPOSING_ASSUMPTIONS...</p>
-            </div>
-          ) : (
-            <AnalysisResult analysis={analysis} onReset={() => setAnalysis(null)} />
-          )}
+      {user.credits <= 0 ? (
+        <div className="premium-card p-12 text-center space-y-6 bg-red-500/5 border-red-500/20">
+          <h2 className="text-2xl font-bold text-red-400">TRIAL LIMIT REACHED</h2>
+          <p className="text-slate-400 max-w-md mx-auto">You have used all your free analysis credits. Upgrade to the premium tier for unlimited access to the PRISM intelligence engine.</p>
+          <button
+            onClick={() => alert("Payment integration coming next!")}
+            className="px-8 py-3 bg-white text-black font-bold uppercase tracking-widest hover:bg-slate-200 transition-colors"
+          >
+            Upgrade Now
+          </button>
         </div>
+      ) : (
+        !analysis && !isAnalyzing ? (
+          <DecisionForm onSubmit={handleAnalysis} />
+        ) : (
+          <div className="space-y-8 animate-in fade-in duration-700">
+            {isAnalyzing ? (
+              <div className="premium-card p-20 text-center space-y-4">
+                <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto"></div>
+                <p className="font-mono text-sm text-slate-500">DECOMPOSING_ASSUMPTIONS...</p>
+              </div>
+            ) : (
+              <AnalysisResult analysis={analysis} onReset={() => setAnalysis(null)} />
+            )}
+          </div>
+        )
       )}
     </div>
   )

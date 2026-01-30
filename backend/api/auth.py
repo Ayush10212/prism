@@ -28,7 +28,15 @@ async def register(user_in: UserCreate, db: Session = Depends(get_db)):
     db.refresh(new_user)
     
     token = create_access_token(data={"sub": new_user.email, "id": new_user.id})
-    return {"access_token": token, "token_type": "bearer", "user": {"email": new_user.email, "id": new_user.id}}
+    return {
+        "access_token": token, 
+        "token_type": "bearer", 
+        "user": {
+            "email": new_user.email, 
+            "id": new_user.id, 
+            "credits": new_user.credits
+        }
+    }
 
 @router.post("/login")
 async def login(user_in: UserLogin, db: Session = Depends(get_db)):
@@ -37,4 +45,12 @@ async def login(user_in: UserLogin, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     token = create_access_token(data={"sub": user.email, "id": user.id})
-    return {"access_token": token, "token_type": "bearer", "user": {"email": user.email, "id": user.id}}
+    return {
+        "access_token": token, 
+        "token_type": "bearer", 
+        "user": {
+            "email": user.email, 
+            "id": user.id, 
+            "credits": user.credits
+        }
+    }
