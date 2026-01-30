@@ -1,0 +1,37 @@
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+from routers.decision import router as decision_router
+from routers.auth import router as auth_router
+from routers.payments import router as payments_router
+from routers.research import router as research_router
+
+from database import init_db
+
+app = FastAPI(title="PRISM - Decision Intelligence API")
+
+@app.on_event("startup")
+def on_startup():
+    init_db()
+
+# Configure CORS for the frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
+app.include_router(payments_router, prefix="/api/payments", tags=["payments"])
+app.include_router(decision_router, prefix="/api", tags=["decisions"])
+app.include_router(research_router, prefix="/api/research", tags=["research"])
+
+@app.get("/")
+async def root():
+    return {"message": "PRISM API operational", "status": "healthy"}
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
