@@ -24,7 +24,7 @@ export default function Home() {
     setIsAnalyzing(true)
     try {
       const token = localStorage.getItem("prism_token")
-      const response = await fetch("http://localhost:8000/api/analyze", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
