@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.decision import router as decision_router
 from api.auth import router as auth_router
 from api.payments import router as payments_router
+from api.research import router as research_router
 
 from database import init_db
 
@@ -25,6 +26,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/auth", tags=["auth"])
 app.include_router(payments_router, prefix="/api/payments", tags=["payments"])
 app.include_router(decision_router, prefix="/api", tags=["decisions"])
+app.include_router(research_router, prefix="/api/research", tags=["research"])
 
 @app.get("/")
 async def root():
